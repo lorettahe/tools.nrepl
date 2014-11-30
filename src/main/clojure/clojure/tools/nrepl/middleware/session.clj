@@ -8,6 +8,7 @@
   (:require (clojure main test)
             [clojure.tools.nrepl.transport :as t])
   (:import clojure.tools.nrepl.transport.Transport
+           (clojure.tools.nrepl SessionOutPrintWriter SessionPushBackReader)
            (java.io PipedReader PipedWriter Reader Writer PrintWriter StringReader)
            clojure.lang.LineNumberingPushbackReader
            java.util.concurrent.LinkedBlockingQueue))
@@ -30,26 +31,11 @@
    `channel-type` should be :out or :err, as appropriate."
   [channel-type session-id transport]
   (let [buf (clojure.tools.nrepl.StdOutBuffer.)]
-    (PrintWriter. (proxy [Writer] []
-                    (close [] (.flush ^Writer this))
-                    (write [& [x ^Integer off ^Integer len]]
-                      (locking buf
-                        (cond
-                          (number? x) (.append buf (char x))
-                          (not off) (.append buf x)
-                          ; the CharSequence overload of append takes an *end* idx, not length!
-                          (instance? CharSequence x) (.append buf ^CharSequence x (int off) (int (+ len off)))
-                          :else (.append buf ^chars x off len))
-                        (when (<= *out-limit* (.length buf))
-                          (.flush ^Writer this))))
-                    (flush []
-                      (let [text (locking buf (let [text (str buf)]
-                                                (.setLength buf 0)
-                                                text))]
-                        (when (pos? (count text))
-                          (t/send (or (:transport *msg*) transport)
-                                  (response-for *msg* :session session-id
-                                                channel-type text))))))
+    (PrintWriter. (SessionOutPrintWriter. buf (fn [] (int *out-limit*))
+                                          (fn [text]                                            
+                                            (t/send (or (:transport *msg*) transport)
+                                                    (response-for *msg* :session session-id
+                                                                  channel-type text))))
                   true)))
 
 (defn- session-in
@@ -82,26 +68,7 @@
                         :else
                           i))))
         reader (LineNumberingPushbackReader.
-                 (proxy [Reader] []
-                   (close [] (.clear input-queue))
-                   (read
-                     ([]
-                      (let [^Reader this this] (proxy-super read)))
-                     ([x]
-                      (let [^Reader this this]
-                        (if (instance? java.nio.CharBuffer x)
-                          (proxy-super read ^java.nio.CharBuffer x)
-                          (proxy-super read ^chars x))))
-                     ([^chars buf off len]
-                      (if (zero? len)
-                        -1
-                        (let [first-character (request-input)]
-                          (if (or (nil? first-character) (= first-character -1))
-                            -1
-                            (do
-                              (aset-char buf off (char first-character))
-                              (- (do-read buf (inc off) (dec len))
-                                 off)))))))))]
+                (SessionPushBackReader. input-queue request-input do-read))]
     {:input-queue input-queue
      :stdin-reader reader}))
 
