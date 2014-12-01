@@ -46,27 +46,27 @@
   [session-id transport]
   (let [input-queue (LinkedBlockingQueue.)
         request-input (fn []
-                        (int (cond (> (.size input-queue) 0)
-                               (.take input-queue)
-                               *skipping-eol*
-                               nil
-                               :else
-                               (do
-                                 (t/send transport
-                                         (response-for *msg* :session session-id
-                                                       :status :need-input))
-                                 (.take input-queue)))))
+                        (cond (> (.size input-queue) 0)
+                              (.take input-queue)
+                              *skipping-eol*
+                              nil
+                              :else
+                              (do
+                                (t/send transport
+                                        (response-for *msg* :session session-id
+                                                      :status :need-input))
+                                (.take input-queue))))
         do-read (fn [buf off len]
-                  (int (locking input-queue
-                         (loop [i off]
-                           (cond
-                            (>= i (+ off len))
-                            (+ off len)
-                            (.peek input-queue)
-                            (do (aset-char buf i (char (.take input-queue)))
-                                (recur (inc i)))
-                            :else
-                            i)))))
+                  (locking input-queue
+                    (loop [i off]
+                      (cond
+                       (>= i (+ off len))
+                       (+ off len)
+                       (.peek input-queue)
+                       (do (aset-char buf i (char (.take input-queue)))
+                           (recur (inc i)))
+                       :else
+                       i))))
         reader (LineNumberingPushbackReader.
                 (SessionPushBackReader. input-queue request-input do-read))]
     {:input-queue input-queue
