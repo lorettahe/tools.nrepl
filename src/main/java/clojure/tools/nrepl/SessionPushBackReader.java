@@ -26,15 +26,16 @@ public class SessionPushBackReader extends java.io.Reader {
             if(len == 0) {
                 return -1;
             }
-            final Character firstChar = (Character) requestInputFn.invoke();
+            final Integer firstChar = (Integer) requestInputFn.invoke();
             if(firstChar == null || firstChar.equals(-1)) {
                 return -1;
             }
             
-            buf[off] = firstChar.charValue();
+            buf[off] = (char)(int) firstChar;
             return (Integer) doRead.invoke(buf, off + 1, len - 1) - off;
         }
         catch (Exception e) {
+            //System.out.println(e.getMessage());
             return -1;
         }
     }
