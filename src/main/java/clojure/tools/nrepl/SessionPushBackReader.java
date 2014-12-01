@@ -8,7 +8,7 @@ public class SessionPushBackReader extends java.io.Reader {
     private final LinkedBlockingQueue inputQueue;
     private final IFn requestInputFn;
     private final IFn doRead;
-    
+
     public SessionPushBackReader(final LinkedBlockingQueue inputQueue, final IFn requestInputFn, final IFn doRead) {
         this.inputQueue = inputQueue;
         this.requestInputFn = requestInputFn;
@@ -19,7 +19,7 @@ public class SessionPushBackReader extends java.io.Reader {
     public void close() {
         inputQueue.clear();
     }
-    
+
     @Override
     public int read(char[] buf, int off, int len) {
         if(len == 0) {
@@ -34,16 +34,16 @@ public class SessionPushBackReader extends java.io.Reader {
             }
         }
         catch (Exception e) {
-            System.out.println("Errored in requestInput");
+            System.out.println("Error in requestInput");
             System.out.println(e.getMessage());
             e.printStackTrace();
             return -1;
         }
-        
-        if(firstChar instanceof Number && ((Number)firstChar).equals(-1)) {
+
+        if(firstChar instanceof Long && firstChar.equals((long)-1)) {
             return -1;
         }
-        
+
         buf[off] = (Character)firstChar;
         Object readResult;
         try {
@@ -55,6 +55,13 @@ public class SessionPushBackReader extends java.io.Reader {
             e.printStackTrace();
             return -1;
         }
-        return (int)(((Long) readResult) - Long.valueOf(off));
+
+        if (readResult instanceof Long) {
+            return (((Long) readResult).intValue() - off);
+        } else if (readResult instanceof Integer) {
+            return (Integer)readResult - off;
+        } else {
+            return -1;
+        }
     }
 }
