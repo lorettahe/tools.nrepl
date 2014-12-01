@@ -2,7 +2,7 @@
    **Do not edit!** -->
 # Supported nREPL operations
 
-<small>generated from a verbose 'describe' response (nREPL v0.2.4-SNAPSHOT)</small>
+<small>generated from a verbose 'describe' response (nREPL v0.2.7-SNAPSHOT)</small>
 
 ## Operations
 
